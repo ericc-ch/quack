@@ -1,3 +1,4 @@
+```go
 package main
 
 // An example program demonstrating the pager component from the Bubbles
@@ -122,3 +123,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+```

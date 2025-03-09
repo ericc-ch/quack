@@ -10,14 +10,12 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
-
-type errMsg error
 
 type winSize struct {
 	width  int
@@ -25,21 +23,11 @@ type winSize struct {
 }
 
 type model struct {
-	isLoading bool
-	textarea  textarea.Model
-	err       error
-	size      winSize
+	winSize winSize
 }
 
 func initialModel() model {
-	ti := textarea.New()
-	ti.Placeholder = "Once upon a time..."
-	ti.Focus()
-
-	return model{
-		textarea: ti,
-		err:      nil,
-	}
+	return model{}
 }
 
 func (m model) Init() tea.Cmd {
@@ -52,52 +40,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.isLoading = false
-		m.size = winSize{
+		m.winSize = winSize{
 			width:  msg.Width,
 			height: msg.Height,
 		}
-		m.textarea.SetWidth(m.size.width)
 
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEsc:
-			if m.textarea.Focused() {
-				m.textarea.Blur()
-			}
-		case tea.KeyCtrlC:
+		switch msg.String() {
+		case "ctrl+c", "q":
 			return m, tea.Quit
-		default:
-			if !m.textarea.Focused() {
-				cmd = m.textarea.Focus()
-				cmds = append(cmds, cmd)
-			}
 		}
-
-	// We handle errors just like any other message
-	case errMsg:
-		m.err = msg
-		return m, nil
 	}
 
-	m.textarea, cmd = m.textarea.Update(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
-	var style = lipgloss.
+	style := lipgloss.
 		NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FF0000")).
-		Background(lipgloss.Color("#FFFFFF")).
-		PaddingTop(2).
-		PaddingLeft(4).
-		Width(m.size.width)
+		BorderStyle(lipgloss.DoubleBorder()).
+		BorderForeground(lipgloss.Color("#ff0000")).
+		Width(m.winSize.width / 4).
+		Height(m.winSize.height / 4)
 
-	return fmt.Sprintf(
-		"Tell me a story.\n\n%s\n\n%s",
-		m.textarea.View(),
-		"(ctrl+c to quit)",
-	) + "\n\n" + style.Render(fmt.Sprintln(m.size, m.isLoading))
+	style2 := lipgloss.NewStyle().Width(m.winSize.width / 8).Height(m.winSize.height / 8).Inherit(style)
+
+	winSize := fmt.Sprintf("width: %d, height: %d", m.winSize.width, m.winSize.height)
+	winSize2 := fmt.Sprintf("width: %d, height: %d", m.winSize.width, m.winSize.height)
+
+	return lipgloss.JoinHorizontal(
+		0.8,
+		style.Render(winSize),
+		style2.Render(winSize2),
+	)
 }
